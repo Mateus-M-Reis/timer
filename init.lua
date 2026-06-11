@@ -194,17 +194,31 @@ function Timer:tween(delay, target, payload, method, after_action, tag)
   return task
 end
 
----@param f function Função usando coroutine.yield(delay)
+--- Executa uma coroutine passando uma função 'wait' customizada
+---@param f function Função usando wait(delay)
 ---@param tag? any
 function Timer:script(f, tag)
   if tag then self:cancel(tag) end
-  local co = coroutine.create(f)
+
+  local co
+
+  -- Esta é a função 'wait' que injetaremos na sua coroutine
+  local function wait(delay)
+    return coroutine.yield(delay)
+  end
+
+  co = coroutine.create(f)
+
   local function step()
-    local ok, wait = coroutine.resume(co)
-    if ok and wait and coroutine.status(co) ~= "dead" then
-      self:after(wait, step, tag)
+    -- Passamos a função 'wait' como argumento no resume. 
+    -- Na primeira execução, ela preenche o parâmetro da sua função f(wait).
+    local ok, delay_time = coroutine.resume(co, wait)
+
+    if ok and delay_time and coroutine.status(co) ~= "dead" then
+      self:after(delay_time, step, tag)
     end
   end
+
   step()
 end
 
@@ -262,7 +276,7 @@ function M.during(delay, action, after_action, tag) return default_timer:during(
 ---@return TimerTask
 function M.tween(delay, target, payload, method, after_action, tag) return default_timer:tween(delay, target, payload, method, after_action, tag) end
 
---- Executa uma coroutine respeitando o ciclo do timer
+--- Executa uma coroutine passando uma função 'wait' customizada
 ---@param f function
 ---@param tag? any
 function M.script(f, tag) return default_timer:script(f, tag) end

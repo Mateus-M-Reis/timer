@@ -59,22 +59,22 @@ loop_tween()
 -- 5. Testando: timer.script (Sequenciamento Assíncrono com Coroutines)
 ---------------------------------------------------------------------------
 -- Controla o cubo roxo superior executando uma coreografia complexa por etapas.
-timer.script(function()
+timer.script(function(wait)
   while true do
     -- Etapa A: Espera 2 segundos parado
-    coroutine.yield(2)
+    wait(2)
 
     -- Etapa B: Interpola o tamanho até ficar gigante (leva 1.5 segundos)
     timer.tween(1.5, box_script, { size = 0.8 }, 'quadinout')
-    coroutine.yield(1.5) -- Espera o tempo exato do tween terminar
+    wait(1.5) -- Espera o tempo exato do tween terminar
 
     -- Etapa C: Muda a cor para ciano instantaneamente e espera 1 segundo
     box_script.color = {0, 1, 1}
-    coroutine.yield(1)
+    wait(1)
 
     -- Etapa D: Retorna o tamanho e a cor original suavizadamente
     timer.tween(1, box_script, { size = 0.4 }, 'linear')
-    coroutine.yield(1)
+    wait(1)
     box_script.color = {1, 0, 1}
   end
 end)
