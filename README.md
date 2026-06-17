@@ -110,16 +110,16 @@ Executes a function as a coroutine. Inside the function, you can call `coroutine
 **Script Example:**
 
 ```lua
-timer.script(function()
+timer.script(function(want)
     print("Sequence starting...")
     
     -- Wait for 2 seconds
-    coroutine.yield(2)
+    wait(2)
     print("Two seconds have passed!")
     
     -- Animate a menu, wait for the animation to finish
     timer.tween(1.5, menu, { alpha = 1 }, 'quadinout')
-    coroutine.yield(1.5)
+    wait(1.5)
     
     print("Sequence complete.")
 end, "intro_cutscene")
