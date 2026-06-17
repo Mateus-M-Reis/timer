@@ -73,38 +73,44 @@ function Timer:update(dt)
 
   for task in pairs(to_update) do
     if self.tasks[task] then
-      task.time = task.time + dt
+      -- ADICIONADO: Só atualiza se a tarefa NÃO estiver pausada
+      if not task.paused then
+        task.time = task.time + dt
 
-      if task.type == "after" then
-        if task.time >= task.limit then
-          self:cancel(task)
-          task.action()
-        end
-      elseif task.type == "every" then
-        if task.time >= task.limit then
-          task.time = task.time - task.limit
-          -- Se a função retornar false, nós abortamos o loop infinito (comportamento do Hump)
-          if task.action() == false then
+        if task.type == "after" then
+          if task.time >= task.limit then
             self:cancel(task)
+            task.action()
+          end
+        elseif task.type == "every" then
+          if task.time >= task.limit then
+            task.time = task.time - task.limit
+            if task.action() == false then
+              self:cancel(task)
+            end
+          end
+        elseif task.type == "during" then
+          task.action(dt)
+          if task.time >= task.limit then
+            self:cancel(task)
+            if task.after_action then
+              task.after_action()
+            end
+          end
+        elseif task.type == "tween" then
+          local t = math.min(task.time / task.limit, 1)
+          local e = task.easing(t)
+          for key, vals in pairs(task.payload) do
+            task.target[key] = vals.start + (vals.target - vals.start) * e
+          end
+          if t == 1 then
+            self:cancel(task)
+            if task.after_action then
+              task.after_action()
+            end
           end
         end
-      elseif task.type == "during" then
-        task.action(dt)
-        if task.time >= task.limit then
-          self:cancel(task)
-          if task.after_action then task.after_action() end
-        end
-      elseif task.type == "tween" then
-        local t = math.min(task.time / task.limit, 1)
-        local e = task.easing(t)
-        for key, vals in pairs(task.payload) do
-          task.target[key] = vals.start + (vals.target - vals.start) * e
-        end
-        if t == 1 then
-          self:cancel(task)
-          if task.after_action then task.after_action() end
-        end
-      end
+      end -- FIM DO IF NOT TASK.PAUSED
     end
   end
 end
@@ -124,6 +130,26 @@ end
 function Timer:clear()
   self.tasks = {}
   self.tags = {}
+end
+
+--- Pausa um timer ou animação ativa pela tag ou referência
+---@param handle_or_tag any
+function Timer:pause(handle_or_tag)
+  if not handle_or_tag then return end
+  local task = self.tags[handle_or_tag] or handle_or_tag
+  if self.tasks[task] then
+    task.paused = true
+  end
+end
+
+--- Retoma um timer ou animação pausada pela tag ou referência
+---@param handle_or_tag any
+function Timer:resume(handle_or_tag)
+  if not handle_or_tag then return end
+  local task = self.tags[handle_or_tag] or handle_or_tag
+  if self.tasks[task] then
+    task.paused = false
+  end
 end
 
 ---@param delay number
@@ -243,6 +269,14 @@ function M.clear() return default_timer:clear() end
 --- Cancela um timer ativo pela tag ou referência
 ---@param handle_or_tag any
 function M.cancel(handle_or_tag) return default_timer:cancel(handle_or_tag) end
+
+--- Pausa uma animação ou timer global ativo pela tag ou referência
+---@param handle_or_tag any
+function M.pause(handle_or_tag) return default_timer:pause(handle_or_tag) end
+
+--- Retoma uma animação ou timer global pausado pela tag ou referência
+---@param handle_or_tag any
+function M.resume(handle_or_tag) return default_timer:resume(handle_or_tag) end
 
 --- Executa uma função após um delay
 ---@param delay number

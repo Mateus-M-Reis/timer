@@ -1,14 +1,17 @@
 local timer = require 'init'
 
 -- Tabelas que representam nossos objetos de teste no espaço 3D
-local box_after = { x = -2, y = 1.5, z = -3, size = 0.3, color = {1, 0, 0} }
-local box_every = { x = -0.8, y = 1.5, z = -3, size = 0.3, color = {0, 1, 0} }
-local box_during = { x = 0.8, y = 1.5, z = -3, size = 0.3, color = {0, 0, 1} }
-local box_tween = { x = 2, y = 1.5, z = -3, size = 0.3, color = {1, 1, 0} }
-local box_script = { x = 0, y = 3.0, z = -4, size = 0.4, color = {1, 0, 1} }
+local box_after  = { x = -2,   y = 1.5, z = -3, size = 0.3, color = {1, 0, 0} }
+local box_every  = { x = -0.8, y = 1.5, z = -3, size = 0.3, color = {0, 1, 0} }
+local box_during = { x = 0.8,  y = 1.5, z = -3, size = 0.3, color = {0, 0, 1} }
+local box_tween  = { x = 2,    y = 1.5, z = -3, size = 0.3, color = {1, 1, 0} }
+local box_script = { x = 0,    y = 3.0, z = -4, size = 0.4, color = {1, 0, 1} }
+local box_pause  = { x = -1,   y = -0.1, z = -4, size = 0.4, color = {1, 0, 0} }
 
 -- Variável para monitorar o estado do teste de TAGs por clique do usuário
 local click_feedback = "Clique/Gatilho para testar as TAGS!"
+
+local player_movement
 
 function lovr.load()
   ---------------------------------------------------------------------------
@@ -42,9 +45,10 @@ function lovr.load()
     box_during.angle = box_during.angle + dt * 4
     box_during.y = 1.5 + math.sin(box_during.angle) * 0.2
   end, function()
-  box_during.size = 0.1 -- Callback executado quando o tempo acaba
-end)
+    box_during.size = 0.1 -- Callback executado quando o tempo acaba
+  end)
 
+  timer.tween(5.0, box_pause, { x = 1 }, "quadout", nil, "player_movement")
 ---------------------------------------------------------------------------
 -- 4. Testando: timer.tween
 ---------------------------------------------------------------------------
@@ -95,6 +99,14 @@ function lovr.keypressed(key)
       click_feedback = "Cubo resetado com sucesso via Tag!"
     end, "reset_vermelho")
   end
+
+  if key == "p" then
+    -- Pausa a animação imediatamente
+    timer.pause("player_movement")
+  elseif key == "r" then
+    -- Retoma de onde parou
+    timer.resume("player_movement")
+  end
 end
 
 function lovr.update(dt)
@@ -114,6 +126,7 @@ function lovr.draw(pass)
   pass:text("during", box_during.x, box_during.y + 0.4, box_during.z, 0.1)
   pass:text("tween", box_tween.x, box_tween.y + 0.4, box_tween.z, 0.1)
   pass:text("script (coroutine)", box_script.x, box_script.y + 0.6, box_script.z, 0.1)
+  pass:text("pause/resume", box_pause.x, box_pause.y + 0.6, box_pause.z, 0.1)
 
   -- Desenha o Cubo 1: After (Fica branco após 3s / Aperte uma tecla para testar Tag nele)
   pass:setColor(box_after.color[1], box_after.color[2], box_after.color[3])
@@ -134,4 +147,8 @@ function lovr.draw(pass)
   -- Desenha o Cubo 5: Script (Coreografia assíncrona controlada por yields e tempos customizados)
   pass:setColor(box_script.color[1], box_script.color[2], box_script.color[3])
   pass:cube(box_script.x, box_script.y, box_script.z, box_script.size)
+
+  pass:setColor(box_pause.color[1], box_pause.color[2], box_pause.color[3])
+  pass:cube(box_pause.x, box_pause.y, box_pause.z, box_pause.size)
+  pass:setColor(1, 1, 1)
 end
