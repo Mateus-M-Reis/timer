@@ -11,8 +11,6 @@ local box_pause  = { x = -1,   y = -0.1, z = -4, size = 0.4, color = {1, 0, 0} }
 -- Variable to track the state of the TAG testing via user input click
 local click_feedback = "Press any key to test TAGS!"
 
-local player_movement
-
 function lovr.load()
   ---------------------------------------------------------------------------
   -- 1. Testing: timer.after
