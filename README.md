@@ -10,6 +10,7 @@ Built upon the legacy of HUMP's `timer.lua`, this version represents an architec
 * **Tag-Based Control:** Overwrite active intervals or animations on the fly simply by assigning custom string tags—bypassing the need to store and track arbitrary reference handles.
 * **Native Range Randomization:** Pass range arrays like `{0.2, 0.5}` directly into your execution methods to effortlessly introduce organic, non-uniform interval spacing.
 * **Sequential Scripts:** Leverage Lua coroutines to write complex, asynchronous cutscenes or timed behavior trees in a single, readable block of code.
+* **Pause & Resume Controls:** Freeze individual animations, loops, or delayed callbacks mid-execution and resume them seamlessly—perfect for pause menus or status effects.
 * **Zero-Crash Easing Engine:** Utilizes a pre-compiled $O(1)$ dictionary lookup matching all common string formatting styles (`quadinout`, `in-out-quad`, `backOut`, etc.).
 
 ---
@@ -45,6 +46,18 @@ Updates the active timer instance registry. It must be called once every frame i
 Immediately halts and purges any scheduled timer, loop, tween, or script matching the specified tag identifier or handle.
 
 * **`handle_or_tag`** *(any)*: The string tag or table reference of the task to cancel.
+
+#### `timer.pause(handle_or_tag)`
+
+Suspends an active timer, interval, tween, or script. Its internal clock will stop accumulating time until resumed.
+
+* **`handle_or_tag`** *(any)*: The string tag or table reference of the task to pause.
+
+#### `timer.resume(handle_or_tag)`
+
+Resumes a previously suspended timer, interval, tween, or script from the exact point it was frozen.
+
+* **`handle_or_tag`** *(any)*: The string tag or table reference of the task to resume.
 
 #### `timer.clear()`
 
@@ -110,7 +123,7 @@ Executes a function as a coroutine. Inside the function, you can call `coroutine
 **Script Example:**
 
 ```lua
-timer.script(function(want)
+timer.script(function(wait)
     print("Sequence starting...")
     
     -- Wait for 2 seconds
@@ -155,6 +168,26 @@ function Player:shoot()
     timer.after(0.1, function()
         self.color = {1, 0, 0}
     end, "color_reset")
+end
+
+```
+
+### 3. Game Pause UI / Mid-air Freezing
+
+Easily halt specific operational mechanics when a menu opens or a special status trigger occurs without manually tracking state boolean switches inside entity update definitions:
+
+```lua
+-- Start animating an environmental platform
+timer.tween(4.0, platform, { x = 300 }, "quadinout", nil, "moving_platform")
+
+function Game:on_pause_toggled(is_paused)
+    if is_paused then
+        -- Freeze the platform tween immediately
+        timer.pause("moving_platform")
+    else
+        -- Pick right back up from where it was frozen
+        timer.resume("moving_platform")
+    end
 end
 
 ```
