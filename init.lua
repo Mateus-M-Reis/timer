@@ -1,13 +1,15 @@
 ---@class TimerTask
 ---@field type string The type of task (after, every, during, tween)
 ---@field time number The current accumulated time
----@field limit number O time limit/delay configured
+---@field limit number The time limit/delay configured
 ---@field action? function The main function to be executed
----@field after_action? function The function to be executed upon completion (for during/tween)
+---@field after_action? function The function to be executed upon completion (for during/every/tween)
 ---@field target? table The target table of the tween
 ---@field payload? table The processed start/target values of the tween
 ---@field easing? function The easing function
 ---@field tag? any The unique identification tag
+---@field count? number Maximum number of iterations remaining (for every)
+---@field range? table The {min, max} table for randomized intervals (for every)
 
 ---@class TimerInstance
 ---@field tasks table<TimerTask, boolean>
@@ -26,7 +28,7 @@ local easings = {
   -- Cubic
   cubicin = function(t) return t * t * t end,
   cubicout = function(t) t = t - 1; return t * t * t + 1 end,
-  cubicinout = function(t) t = t * 2; if t < 1 then return 0.5 * t * t * t end; t = t - 2; return 0.5 * (t * t * t + 2) end,
+  cubicinout = function(t) t = t * 2; if t < 1 then return 0.5 * t * t * t end; t = t - 2; return 0.5 * (2 + t * t * t) end,
 
   -- Sine
   sinein = function(t) return 1 - math.cos(t * math.pi / 2) end,
@@ -85,7 +87,26 @@ function Timer:update(dt)
         elseif task.type == "every" then
           if task.time >= task.limit then
             task.time = task.time - task.limit
-            if task.action() == false then
+
+            -- Recalculate randomized interval limit if range is present
+            if task.range then
+              task.limit = math.random() * (task.range[2] - task.range[1]) + task.range[1]
+            end
+
+            local continue_loop = task.action()
+
+            if task.count then
+              task.count = task.count - 1
+              if task.count <= 0 then
+                self:cancel(task)
+                if task.after_action then
+                  task.after_action()
+                end
+                continue_loop = false
+              end
+            end
+
+            if continue_loop == false then
               self:cancel(task)
             end
           end
@@ -168,13 +189,46 @@ function Timer:after(delay, action, tag)
 end
 
 --- Executes a function repeatedly at set intervals
----@param delay number
+---@param delay number|table Can be a fixed number or a {min, max} table range
 ---@param action function
+---@param count? number Maximum execution cycles before terminating
+---@param after_action? function Callback executed when count reaches zero
 ---@param tag? any
 ---@return TimerTask
-function Timer:every(delay, action, tag)
+function Timer:every(delay, action, count, after_action, tag)
+  -- Shift arguments if 'count' or 'after_action' are omitted but 'tag' is supplied as a string/object
+  if type(count) == "string" or type(count) == "table" then
+    tag = count
+    count = nil
+    after_action = nil
+  elseif type(after_action) == "string" or type(after_action) == "table" then
+    tag = after_action
+    after_action = nil
+  end
+
   if tag then self:cancel(tag) end
-  local task = { type = "every", time = 0, limit = delay, action = action, tag = tag }
+
+  local initial_delay = 0
+  local range_data = nil
+
+  if type(delay) == "table" then
+    range_data = delay
+    initial_delay = math.random() * (delay[2] - delay[1]) + delay[1]
+  else
+    initial_delay = delay
+  end
+
+  local task = {
+    type = "every",
+    time = 0,
+    limit = initial_delay,
+    action = action,
+    count = count and count > 0 and count or nil,
+    after_action = after_action,
+    range = range_data,
+    tag = tag
+  }
+
   self.tasks[task] = true
   if tag then self.tags[tag] = task end
   return task
@@ -291,11 +345,13 @@ function M.resume(handle_or_tag) return default_timer:resume(handle_or_tag) end
 function M.after(delay, action, tag) return default_timer:after(delay, action, tag) end
 
 --- Executes a function repeatedly at set intervals
----@param delay number
+---@param delay number|table
 ---@param action function
+---@param count? number
+---@param after_action? function
 ---@param tag? any
 ---@return TimerTask
-function M.every(delay, action, tag) return default_timer:every(delay, action, tag) end
+function M.every(delay, action, count, after_action, tag) return default_timer:every(delay, action, count, after_action, tag) end
 
 --- Executes a function every frame for a specified duration
 ---@param delay number
