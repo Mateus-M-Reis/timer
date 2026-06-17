@@ -1,6 +1,6 @@
 # Timer
 
-A robust, lightweight, object-oriented time-management and tweening utility library optimized for LÖVE and LÖVR.
+A robust, lightweight, object-oriented time-management and tweening utility library.
 
 Built upon the legacy of HUMP's `timer.lua`, this version represents an architectural evolution designed to handle high-performance game loops, prevent execution collisions via tag-based cancellation, and eliminate string-parsing runtime crashes entirely.
 
