@@ -1,20 +1,20 @@
 ---@class TimerTask
----@field type string O tipo da tarefa (after, every, during, tween)
----@field time number O tempo atual acumulado
----@field limit number O tempo limite/delay configurado
----@field action? function A função principal a ser executada
----@field after_action? function A função a ser executada ao terminar (para during/tween)
----@field target? table O alvo do tween
----@field payload? table Os valores processados do tween
----@field easing? function A função de suavização
----@field tag? any A tag de identificação única
+---@field type string The type of task (after, every, during, tween)
+---@field time number The current accumulated time
+---@field limit number O time limit/delay configured
+---@field action? function The main function to be executed
+---@field after_action? function The function to be executed upon completion (for during/tween)
+---@field target? table The target table of the tween
+---@field payload? table The processed start/target values of the tween
+---@field easing? function The easing function
+---@field tag? any The unique identification tag
 
 ---@class TimerInstance
 ---@field tasks table<TimerTask, boolean>
 ---@field tags table<any, TimerTask>
 local Timer = {}; Timer.__index = Timer
 
--- Dicionário O(1) rápido para os easings do tween
+-- Fast O(1) dictionary for tween easings
 local easings = {
   linear = function(t) return t end,
 
@@ -56,7 +56,7 @@ local easings = {
   end
 }
 
---- Instancia um novo pool de timers (caso queira timers locais além do global)
+--- Instantiates a new local timer pool
 ---@return TimerInstance
 function Timer.new()
   return setmetatable({
@@ -65,15 +65,15 @@ function Timer.new()
   }, Timer)
 end
 
----@param dt number Tempo delta do frame
+---@param dt number Frame delta time
 function Timer:update(dt)
-  -- Iteramos sobre uma cópia para permitir remoções/adições seguras durante o loop
+  -- Iterate over a copy to allow safe removal/addition during the loop
   local to_update = {}
   for task in pairs(self.tasks) do to_update[task] = true end
 
   for task in pairs(to_update) do
     if self.tasks[task] then
-      -- ADICIONADO: Só atualiza se a tarefa NÃO estiver pausada
+      -- Only update if the task is NOT paused
       if not task.paused then
         task.time = task.time + dt
 
@@ -110,12 +110,13 @@ function Timer:update(dt)
             end
           end
         end
-      end -- FIM DO IF NOT TASK.PAUSED
+      end
     end
   end
 end
 
----@param handle_or_tag any Pode ser a string da tag ou a própria tabela do timer
+--- Cancels an active timer by its tag or task reference
+---@param handle_or_tag any Can be a string tag or the timer table itself
 function Timer:cancel(handle_or_tag)
   if not handle_or_tag then return end
   local task = self.tags[handle_or_tag] or handle_or_tag
@@ -127,12 +128,13 @@ function Timer:cancel(handle_or_tag)
   end
 end
 
+--- Clears all active timers and tags in this pool
 function Timer:clear()
   self.tasks = {}
   self.tags = {}
 end
 
---- Pausa um timer ou animação ativa pela tag ou referência
+--- Pauses an active timer or animation by its tag or reference
 ---@param handle_or_tag any
 function Timer:pause(handle_or_tag)
   if not handle_or_tag then return end
@@ -142,7 +144,7 @@ function Timer:pause(handle_or_tag)
   end
 end
 
---- Retoma um timer ou animação pausada pela tag ou referência
+--- Resumes a paused timer or animation by its tag or reference
 ---@param handle_or_tag any
 function Timer:resume(handle_or_tag)
   if not handle_or_tag then return end
@@ -152,6 +154,7 @@ function Timer:resume(handle_or_tag)
   end
 end
 
+--- Executes a function once after a specified delay
 ---@param delay number
 ---@param action function
 ---@param tag? any
@@ -164,6 +167,7 @@ function Timer:after(delay, action, tag)
   return task
 end
 
+--- Executes a function repeatedly at set intervals
 ---@param delay number
 ---@param action function
 ---@param tag? any
@@ -176,6 +180,7 @@ function Timer:every(delay, action, tag)
   return task
 end
 
+--- Executes a function every frame for a specified duration
 ---@param delay number
 ---@param action function
 ---@param after_action? function
@@ -189,10 +194,11 @@ function Timer:during(delay, action, after_action, tag)
   return task
 end
 
+--- Smoothly interpolates values in a table over time
 ---@param delay number
----@param target table Tabela que contém os valores
----@param payload table Valores finais desejados
----@param method? string Ex: 'linear', 'quadinout'
+---@param target table The table containing the values to animate
+---@param payload table The desired final values
+---@param method? string E.g., 'linear', 'quadout', 'quadinout'
 ---@param after_action? function
 ---@param tag? any
 ---@return TimerTask
@@ -220,15 +226,15 @@ function Timer:tween(delay, target, payload, method, after_action, tag)
   return task
 end
 
---- Executa uma coroutine passando uma função 'wait' customizada
----@param f function Função usando wait(delay)
+--- Runs a coroutine providing a custom 'wait' function for sequencing
+---@param f function Function using wait(delay)
 ---@param tag? any
 function Timer:script(f, tag)
   if tag then self:cancel(tag) end
 
   local co
 
-  -- Esta é a função 'wait' que injetaremos na sua coroutine
+  -- This is the 'wait' function injected into the coroutine
   local function wait(delay)
     return coroutine.yield(delay)
   end
@@ -236,8 +242,7 @@ function Timer:script(f, tag)
   co = coroutine.create(f)
 
   local function step()
-    -- Passamos a função 'wait' como argumento no resume. 
-    -- Na primeira execução, ela preenche o parâmetro da sua função f(wait).
+    -- Pass the 'wait' function as an argument on resume to fill the f(wait) parameter
     local ok, delay_time = coroutine.resume(co, wait)
 
     if ok and delay_time and coroutine.status(co) ~= "dead" then
@@ -249,50 +254,50 @@ function Timer:script(f, tag)
 end
 
 -------------------------------------------------------------------------------
--- Instância Global (Exportação do Módulo)
+-- Global Instance (Module Export)
 -------------------------------------------------------------------------------
 
 ---@class TimerModule
 local default_timer = Timer.new()
 local M = {}
 
---- Permite instanciar timers locais (ex: local my_timer = timer.new())
+--- Allows instantiating independent local timer pools
 M.new = Timer.new
 
---- O loop principal. Coloque no lovr.update(dt) do main.lua
+--- The main update loop. Place this inside lovr.update(dt) in main.lua
 ---@param dt number
 function M.update(dt) return default_timer:update(dt) end
 
---- Limpa todos os timers globais ativos
+--- Clears all active global timers and tags
 function M.clear() return default_timer:clear() end
 
---- Cancela um timer ativo pela tag ou referência
+--- Cancels an active global timer by its tag or reference
 ---@param handle_or_tag any
 function M.cancel(handle_or_tag) return default_timer:cancel(handle_or_tag) end
 
---- Pausa uma animação ou timer global ativo pela tag ou referência
+--- Pauses an active global timer or animation by its tag or reference
 ---@param handle_or_tag any
 function M.pause(handle_or_tag) return default_timer:pause(handle_or_tag) end
 
---- Retoma uma animação ou timer global pausado pela tag ou referência
+--- Resumes a paused global timer or animation by its tag or reference
 ---@param handle_or_tag any
 function M.resume(handle_or_tag) return default_timer:resume(handle_or_tag) end
 
---- Executa uma função após um delay
+--- Executes a function once after a specified delay
 ---@param delay number
 ---@param action function
 ---@param tag? any
 ---@return TimerTask
 function M.after(delay, action, tag) return default_timer:after(delay, action, tag) end
 
---- Executa uma função repetidamente em intervalos
+--- Executes a function repeatedly at set intervals
 ---@param delay number
 ---@param action function
 ---@param tag? any
 ---@return TimerTask
 function M.every(delay, action, tag) return default_timer:every(delay, action, tag) end
 
---- Executa uma função todo frame durante um período de tempo
+--- Executes a function every frame for a specified duration
 ---@param delay number
 ---@param action function
 ---@param after_action? function
@@ -300,7 +305,7 @@ function M.every(delay, action, tag) return default_timer:every(delay, action, t
 ---@return TimerTask
 function M.during(delay, action, after_action, tag) return default_timer:during(delay, action, after_action, tag) end
 
---- Anima valores em uma tabela de forma procedural
+--- Smoothly interpolates values in a table over time
 ---@param delay number
 ---@param target table
 ---@param payload table
@@ -310,7 +315,7 @@ function M.during(delay, action, after_action, tag) return default_timer:during(
 ---@return TimerTask
 function M.tween(delay, target, payload, method, after_action, tag) return default_timer:tween(delay, target, payload, method, after_action, tag) end
 
---- Executa uma coroutine passando uma função 'wait' customizada
+--- Runs a coroutine providing a custom 'wait' function for sequencing
 ---@param f function
 ---@param tag? any
 function M.script(f, tag) return default_timer:script(f, tag) end

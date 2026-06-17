@@ -1,6 +1,6 @@
 local timer = require 'init'
 
--- Tabelas que representam nossos objetos de teste no espaço 3D
+-- Tables representing our test objects in 3D space
 local box_after  = { x = -2,   y = 1.5, z = -3, size = 0.3, color = {1, 0, 0} }
 local box_every  = { x = -0.8, y = 1.5, z = -3, size = 0.3, color = {0, 1, 0} }
 local box_during = { x = 0.8,  y = 1.5, z = -3, size = 0.3, color = {0, 0, 1} }
@@ -8,25 +8,25 @@ local box_tween  = { x = 2,    y = 1.5, z = -3, size = 0.3, color = {1, 1, 0} }
 local box_script = { x = 0,    y = 3.0, z = -4, size = 0.4, color = {1, 0, 1} }
 local box_pause  = { x = -1,   y = -0.1, z = -4, size = 0.4, color = {1, 0, 0} }
 
--- Variável para monitorar o estado do teste de TAGs por clique do usuário
-local click_feedback = "Clique/Gatilho para testar as TAGS!"
+-- Variable to track the state of the TAG testing via user input click
+local click_feedback = "Press any key to test TAGS!"
 
 local player_movement
 
 function lovr.load()
   ---------------------------------------------------------------------------
-  -- 1. Testando: timer.after
+  -- 1. Testing: timer.after
   ---------------------------------------------------------------------------
-  -- Após 3 segundos, altera permanentemente a cor do primeiro cubo para Branco.
+  -- After 3 seconds, permanently changes the first cube's color to White.
   timer.after(3, function()
     box_after.color = {1, 1, 1}
   end)
 
   ---------------------------------------------------------------------------
-  -- 2. Testando: timer.every
+  -- 2. Testing: timer.every
   ---------------------------------------------------------------------------
-  -- Faz o cubo verde piscar (mudando seu tamanho) a cada 0.5 segundos.
-  -- Retornar false faria o HUMP timer parar o loop, mas aqui deixamos rodar.
+  -- Makes the green cube blink (changing its size) every 0.5 seconds.
+  -- Returning false would stop the loop, but here we let it run indefinitely.
   timer.every(0.5, function()
     if box_every.size == 0.3 then
       box_every.size = 0.1
@@ -36,23 +36,25 @@ function lovr.load()
   end)
 
   ---------------------------------------------------------------------------
-  -- 3. Testando: timer.during
+  -- 3. Testing: timer.during
   ---------------------------------------------------------------------------
-  -- Durante os primeiros 5 segundos do jogo, rotaciona/modifica o cubo azul 
-  -- a cada frame. Ao terminar, deixa ele bem pequeno.
+  -- During the first 5 seconds of the game, rotates and moves the blue cube 
+  -- every frame. Upon completion, shrinks it significantly.
   box_during.angle = 0
   timer.during(5, function(dt)
     box_during.angle = box_during.angle + dt * 4
     box_during.y = 1.5 + math.sin(box_during.angle) * 0.2
   end, function()
-    box_during.size = 0.1 -- Callback executado quando o tempo acaba
-  end)
+  box_during.size = 0.1 -- Callback executed when the duration ends
+end)
 
-  timer.tween(5.0, box_pause, { x = 1 }, "quadout", nil, "player_movement")
+-- Starts the movement animation for the pause/resume test cube immediately
+timer.tween(5.0, box_pause, { x = 1 }, "quadout", nil, "player_movement")
+
 ---------------------------------------------------------------------------
--- 4. Testando: timer.tween
+-- 4. Testing: timer.tween
 ---------------------------------------------------------------------------
--- Move o cubo amarelo continuamente de cima para baixo usando interpolação quadout.
+-- Continuously interpolates the yellow cube up and down using quadout easing.
 local function loop_tween()
   local target_y = box_tween.y == 1.5 and 0.5 or 1.5
   timer.tween(2, box_tween, { y = target_y }, 'quadout', loop_tween)
@@ -60,23 +62,23 @@ end
 loop_tween()
 
 ---------------------------------------------------------------------------
--- 5. Testando: timer.script (Sequenciamento Assíncrono com Coroutines)
+-- 5. Testing: timer.script (Asynchronous Sequencing with Coroutines)
 ---------------------------------------------------------------------------
--- Controla o cubo roxo superior executando uma coreografia complexa por etapas.
+-- Controls the top purple cube, executing a complex multi-step choreography.
 timer.script(function(wait)
   while true do
-    -- Etapa A: Espera 2 segundos parado
+    -- Step A: Wait for 2 seconds while idle
     wait(2)
 
-    -- Etapa B: Interpola o tamanho até ficar gigante (leva 1.5 segundos)
+    -- Step B: Interpolate size until it becomes huge (takes 1.5 seconds)
     timer.tween(1.5, box_script, { size = 0.8 }, 'quadinout')
-    wait(1.5) -- Espera o tempo exato do tween terminar
+    wait(1.5) -- Wait exactly for the tween to finish
 
-    -- Etapa C: Muda a cor para ciano instantaneamente e espera 1 segundo
+    -- Step C: Change color to cyan instantly and wait for 1 second
     box_script.color = {0, 1, 1}
     wait(1)
 
-    -- Etapa D: Retorna o tamanho e a cor original suavizadamente
+    -- Step D: Smoothly restore the original size and color
     timer.tween(1, box_script, { size = 0.4 }, 'linear')
     wait(1)
     box_script.color = {1, 0, 1}
@@ -84,39 +86,40 @@ timer.script(function(wait)
 end)
 end
 
--- Simula o gatilho/clique para testar a substituição e proteção de TAGs do EnhancedTimer
+-- Simulates a trigger/click to test tag overriding and protection in EnhancedTimer
 function lovr.keypressed(key)
-  -- Pressione 'space' ou qualquer tecla para simular um comando repetitivo rápido
-  if key then
-    click_feedback = "Gatilho disparado! Timer reiniciado sem acumular."
-    box_after.size = 0.6 -- Aumenta o cubo vermelho abruptamente
+  -- Press 'p' or 'r' to control the pause cube animation state
+  if key == "p" then
+    -- Pauses the animation immediately
+    timer.pause("player_movement")
+    click_feedback = "Animation paused ('player_movement')"
+  elseif key == "r" then
+    -- Resumes the animation from where it left off
+    timer.resume("player_movement")
+    click_feedback = "Animation resumed ('player_movement')"
+  elseif key then
+    -- Any other key simulates a rapid repetitive command
+    click_feedback = "Trigger fired! Timer restarted without stacking."
+    box_after.size = 0.6 -- Abruptly increases the red cube size
 
-    -- Usando TAGS ("reset_vermelho"): Se você apertar a tecla várias vezes seguidas,
-    -- o timer anterior é cancelado automaticamente. O cubo nunca vai bugar ou ficar
-    -- encolhendo antes da hora, reiniciando o delay de 1 segundo perfeitamente.
+    -- Using TAGS ("reset_red"): If you press keys multiple times in a row,
+    -- the previous timer is automatically cancelled. The cube will never bug
+    -- or shrink prematurely, resetting the 1-second delay perfectly.
     timer.after(1, function()
       box_after.size = 0.3
-      click_feedback = "Cubo resetado com sucesso via Tag!"
-    end, "reset_vermelho")
-  end
-
-  if key == "p" then
-    -- Pausa a animação imediatamente
-    timer.pause("player_movement")
-  elseif key == "r" then
-    -- Retoma de onde parou
-    timer.resume("player_movement")
+      click_feedback = "Cube successfully reset via Tag!"
+    end, "reset_red")
   end
 end
 
 function lovr.update(dt)
-  -- O ciclo principal ATUALIZA APENAS AQUI. Todos os arquivos externos (como menus)
-  -- que derem require 'lib.timer' se beneficiarão do mesmo relógio global atualizado.
+  -- The main clock UPDATES ONLY HERE. All external files (like menus)
+  -- that require 'init' will benefit from the same synchronized global clock.
   timer.update(dt)
 end
 
 function lovr.draw(pass)
-  -- Desenha os textos informativos flutuando no ambiente virtual
+  -- Draws informative texts floating in the virtual environment
   pass:setColor(1, 1, 1)
   pass:text("Timer Module Test Showcase", 0, 2.5, -3, 0.2)
   pass:text(click_feedback, 0, 0.5, -2, 0.1)
@@ -128,26 +131,27 @@ function lovr.draw(pass)
   pass:text("script (coroutine)", box_script.x, box_script.y + 0.6, box_script.z, 0.1)
   pass:text("pause/resume", box_pause.x, box_pause.y + 0.6, box_pause.z, 0.1)
 
-  -- Desenha o Cubo 1: After (Fica branco após 3s / Aperte uma tecla para testar Tag nele)
+  -- Draws Cube 1: After (Turns white after 3s / Press any key to test Tag on it)
   pass:setColor(box_after.color[1], box_after.color[2], box_after.color[3])
   pass:cube(box_after.x, box_after.y, box_after.z, box_after.size)
 
-  -- Desenha o Cubo 2: Every (Fica piscando de tamanho perpetuamente de 0.5s em 0.5s)
+  -- Draws Cube 2: Every (Blinks by changing size perpetually every 0.5s)
   pass:setColor(box_every.color[1], box_every.color[2], box_every.color[3])
   pass:cube(box_every.x, box_every.y, box_every.z, box_every.size)
 
-  -- Desenha o Cubo 3: During (Rotaciona e flutua nos primeiros 5s, depois encolhe e para)
+  -- Draws Cube 3: During (Rotates and floats during the first 5s, then shrinks and stops)
   pass:setColor(box_during.color[1], box_during.color[2], box_during.color[3])
   pass:cube(box_during.x, box_during.y, box_during.z, box_during.size, box_during.angle or 0, 0, 1, 0)
 
-  -- Desenha o Cubo 4: Tween (Interpolação contínua de subida e descida em Y)
+  -- Draws Cube 4: Tween (Continuous interpolation moving up and down in Y)
   pass:setColor(box_tween.color[1], box_tween.color[2], box_tween.color[3])
   pass:cube(box_tween.x, box_tween.y, box_tween.z, box_tween.size)
 
-  -- Desenha o Cubo 5: Script (Coreografia assíncrona controlada por yields e tempos customizados)
+  -- Draws Cube 5: Script (Async choreography controlled by yields and custom delays)
   pass:setColor(box_script.color[1], box_script.color[2], box_script.color[3])
   pass:cube(box_script.x, box_script.y, box_script.z, box_script.size)
 
+  -- Draws Cube 6: Pause/Resume Showcase
   pass:setColor(box_pause.color[1], box_pause.color[2], box_pause.color[3])
   pass:cube(box_pause.x, box_pause.y, box_pause.z, box_pause.size)
   pass:setColor(1, 1, 1)
