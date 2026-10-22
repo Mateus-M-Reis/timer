@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lua:
+          - "5.1"
+          - "5.2"
+          - "5.3"
+          - "5.4"
+          - "luajit"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: ${{ matrix.lua }}
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install busted
+        run: luarocks install busted
+      - name: Run tests
+        run: busted spec
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install luacheck
+        run: luarocks install luacheck
+      - name: Run luacheck
+        run: luacheck timer.lua init.lua main.lua spec
+      - name: Check formatting
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check timer.lua init.lua main.lua spec

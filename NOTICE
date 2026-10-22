@@ -1,0 +1,6 @@
+Timer
+
+The original timer API and coroutine-based scripting approach are inspired by
+HUMP's timer module by Matthias Richter, distributed under the MIT License.
+
+HUMP: https://github.com/vrld/hump

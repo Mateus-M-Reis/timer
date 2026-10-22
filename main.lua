@@ -1,23 +1,42 @@
-local timer = require 'init'
+local timer = require("timer")
 
 -- Tables representing our test objects in 3D space
-local box_after  = { x = -2,   y = 1.5, z = -3, size = 0.3, color = {1, 0, 0} }
-local box_every  = { x = -0.8, y = 1.5, z = -3, size = 0.3, color = {0, 1, 0} }
-local box_during = { x = 0.8,  y = 1.5, z = -3, size = 0.3, color = {0, 0, 1} }
-local box_tween  = { x = 2,    y = 1.5, z = -3, size = 0.3, color = {1, 1, 0} }
-local box_script = { x = 0,    y = 3.0, z = -4, size = 0.4, color = {1, 0, 1} }
-local box_pause  = { x = -1,   y = -0.1, z = -4, size = 0.4, color = {1, 0, 0} }
+local box_after = { x = -2, y = 1.5, z = -3, size = 0.3, color = { 1, 0, 0 } }
+local box_every = { x = -0.8, y = 1.5, z = -3, size = 0.3, color = { 0, 1, 0 } }
+local box_during = { x = 0.8, y = 1.5, z = -3, size = 0.3, color = { 0, 0, 1 } }
+local box_tween = { x = 2, y = 1.5, z = -3, size = 0.3, color = { 1, 1, 0 } }
+local box_script = { x = 0, y = 3.0, z = -4, size = 0.4, color = { 1, 0, 1 } }
+local box_pause = { x = -1, y = -0.1, z = -4, size = 0.4, color = { 1, 0, 0 } }
 
 -- Variable to track the state of the TAG testing via user input click
 local click_feedback = "Press any key to test TAGS!"
 
+-- Direction flag for the tween showcase; avoids relying on float equality.
+local tween_direction = -1
+
+local function loop_tween()
+  local target_y = tween_direction == -1 and 0.5 or 1.5
+  tween_direction = -tween_direction
+  timer.tween(2, box_tween, { y = target_y }, "quadout", loop_tween)
+end
+
+-- Ping-pong the pause/resume cube so the controls remain useful after the
+-- first traversal.
+local function loop_pause()
+  local target_x = box_pause.x < 0 and 1 or -1
+  timer.tween(5.0, box_pause, { x = target_x }, "quadout", loop_pause, "player_movement")
+end
+
 function lovr.load()
+  -- Clear any timers from a previous load/hot-reload.
+  timer.clear()
+
   ---------------------------------------------------------------------------
   -- 1. Testing: timer.after
   ---------------------------------------------------------------------------
   -- After 3 seconds, permanently changes the first cube's color to White.
   timer.after(3, function()
-    box_after.color = {1, 1, 1}
+    box_after.color = { 1, 1, 1 }
   end)
 
   ---------------------------------------------------------------------------
@@ -36,55 +55,51 @@ function lovr.load()
   ---------------------------------------------------------------------------
   -- 3. Testing: timer.during
   ---------------------------------------------------------------------------
-  -- During the first 5 seconds of the game, rotates and moves the blue cube 
+  -- During the first 5 seconds of the game, rotates and moves the blue cube
   -- every frame. Upon completion, shrinks it significantly.
   box_during.angle = 0
   timer.during(5, function(dt)
     box_during.angle = box_during.angle + dt * 4
     box_during.y = 1.5 + math.sin(box_during.angle) * 0.2
   end, function()
-  box_during.size = 0.1 -- Callback executed when the duration ends
-end)
+    box_during.size = 0.1 -- Callback executed when the duration ends
+  end)
 
--- Starts the movement animation for the pause/resume test cube immediately
-timer.tween(5.0, box_pause, { x = 1 }, "quadout", nil, "player_movement")
+  -- Starts the movement animation for the pause/resume test cube immediately.
+  loop_pause()
 
----------------------------------------------------------------------------
--- 4. Testing: timer.tween
----------------------------------------------------------------------------
--- Continuously interpolates the yellow cube up and down using quadout easing.
-local function loop_tween()
-  local target_y = box_tween.y == 1.5 and 0.5 or 1.5
-  timer.tween(2, box_tween, { y = target_y }, 'quadout', loop_tween)
-end
-loop_tween()
+  ---------------------------------------------------------------------------
+  -- 4. Testing: timer.tween
+  ---------------------------------------------------------------------------
+  -- Continuously interpolates the yellow cube up and down using quadout easing.
+  loop_tween()
 
----------------------------------------------------------------------------
--- 5. Testing: timer.script (Asynchronous Sequencing with Coroutines)
----------------------------------------------------------------------------
--- Controls the top purple cube, executing a complex multi-step choreography.
-timer.script(function(wait)
-  while true do
-    -- Step A: Wait for 2 seconds while idle
-    wait(2)
+  ---------------------------------------------------------------------------
+  -- 5. Testing: timer.script (Asynchronous Sequencing with Coroutines)
+  ---------------------------------------------------------------------------
+  -- Controls the top purple cube, executing a complex multi-step choreography.
+  timer.script(function(wait)
+    while true do
+      -- Step A: Wait for 2 seconds while idle
+      wait(2)
 
-    -- Step B: Interpolate size until it becomes huge (takes 1.5 seconds)
-    timer.tween(1.5, box_script, { size = 0.8 }, 'quadinout')
-    wait(1.5) -- Wait exactly for the tween to finish
+      -- Step B: Interpolate size until it becomes huge (takes 1.5 seconds)
+      timer.tween(1.5, box_script, { size = 0.8 }, "quadinout")
+      wait(1.5) -- Wait exactly for the tween to finish
 
-    -- Step C: Change color to cyan instantly and wait for 1 second
-    box_script.color = {0, 1, 1}
-    wait(1)
+      -- Step C: Change color to cyan instantly and wait for 1 second
+      box_script.color = { 0, 1, 1 }
+      wait(1)
 
-    -- Step D: Smoothly restore the original size and color
-    timer.tween(1, box_script, { size = 0.4 }, 'linear')
-    wait(1)
-    box_script.color = {1, 0, 1}
-  end
-end)
+      -- Step D: Smoothly restore the original size and color
+      timer.tween(1, box_script, { size = 0.4 }, "linear")
+      wait(1)
+      box_script.color = { 1, 0, 1 }
+    end
+  end)
 end
 
--- Simulates a trigger/click to test tag overriding and protection in EnhancedTimer
+-- Simulates a trigger/click to test tag overriding and protection in Timer
 function lovr.keypressed(key)
   -- Press 'p' or 'r' to control the pause cube animation state
   if key == "p" then
@@ -112,7 +127,7 @@ end
 
 function lovr.update(dt)
   -- The main clock UPDATES ONLY HERE. All external files (like menus)
-  -- that require 'init' will benefit from the same synchronized global clock.
+  -- that require 'timer' will benefit from the same synchronized global clock.
   timer.update(dt)
 end
 
